@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  argus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: argus-eudr-auditor:latest
+    container_name: argus-auditor
+    volumes:
+      # Mount current directory or custom data folder to /data inside the container
+      - ./:/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR
+      - GDAL_HTTP_TIMEOUT=30
+    # Enable NVIDIA GPU access if available on host (e.g. AWS g4dn/g5 or GCP T4/L4)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

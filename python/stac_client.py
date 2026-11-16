@@ -115,6 +115,18 @@ class STACClient:
         assets = stac_item.get("assets", {})
         band_map = {}
 
+        # Look for Blue band (B02 / blue)
+        for key in ["blue", "B02", "b02"]:
+            if key in assets and "href" in assets[key]:
+                band_map["blue"] = assets[key]["href"]
+                break
+
+        # Look for Green band (B03 / green)
+        for key in ["green", "B03", "b03"]:
+            if key in assets and "href" in assets[key]:
+                band_map["green"] = assets[key]["href"]
+                break
+
         # Look for Red band (B04 / red)
         for key in ["red", "B04", "b04"]:
             if key in assets and "href" in assets[key]:

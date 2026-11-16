@@ -23,6 +23,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from python.stac_client import STACClient, DEFAULT_STAC_ENDPOINT
 from python.vrt_builder import VRTBuilder
+from python.visualizer import generate_audit_png
 
 
 DEFAULT_BASELINE_WINDOW = "2020-09-01T00:00:00Z/2020-12-31T23:59:59Z"
@@ -74,6 +75,11 @@ def parse_args():
         help="Output machine-readable JSON for automated ERP integration",
     )
     parser.add_argument(
+        "--save-png",
+        default=None,
+        help="Path to export visual comparison PNG (e.g. audit_map.png)",
+    )
+    parser.add_argument(
         "--output-vrt-dir",
         default=None,
         help="Directory to save generated VRT descriptor files (defaults to temporary directory)",
@@ -106,15 +112,25 @@ def run_mock_audit(args, polygon_path: str, vrt_dir: str):
     baseline_vrt = os.path.join(vrt_dir, "baseline_2020_mock.vrt")
     current_vrt = os.path.join(vrt_dir, "current_mock.vrt")
 
-    # In synthetic fixtures, Band 3 is Red and Band 4 is NIR
-    # We pass the full 4-band TIFF directly to the VRT builder or auditor
-    return execute_auditor(args, polygon_path, str(base_tif), str(curr_tif), red_band=3, nir_band=4)
+    # In synthetic fixtures: Band 1 is Blue, Band 2 is Green, Band 3 is Red, Band 4 is NIR
+    return execute_auditor(args, polygon_path, str(base_tif), str(curr_tif), red_band=3, green_band=2, blue_band=1, nir_band=4)
 
 
-def execute_auditor(args, polygon_path: str, baseline_path: str, current_path: str, red_band: int = 1, nir_band: int = 2):
+def execute_auditor(args, polygon_path: str, baseline_path: str, current_path: str, red_band: int = 1, green_band: int = 2, blue_band: int = 3, nir_band: int = 4):
+    if args.save_png:
+        try:
+            generate_audit_png(
+                polygon_path, baseline_path, current_path, args.save_png,
+                red_band=red_band, green_band=green_band, blue_band=blue_band, nir_band=nir_band
+            )
+            if not args.json:
+                print(f"[+] Exported True-Color Optical audit comparison map: {args.save_png}")
+        except Exception as e:
+            if not args.json:
+                print(f"[!] Warning: Could not generate visual PNG: {e}", file=sys.stderr)
+
     binary_path = PROJECT_ROOT / "esg_auditor"
     if not binary_path.exists():
-        # Build binary if not built
         subprocess.run(["make", "-C", str(PROJECT_ROOT)], check=True)
 
     cmd = [
@@ -191,11 +207,22 @@ def main():
 
         if not args.json:
             print("[*] Building zero-copy Cloud-Optimized GeoTIFF VRT streams...")
-        VRTBuilder.create_multiband_vrt(baseline_vrt, [base_urls["red"], base_urls["nir"]])
-        VRTBuilder.create_multiband_vrt(current_vrt, [curr_urls["red"], curr_urls["nir"]])
+
+        # If Blue and Green are present, build 4-band True-Color Optical VRT: Red, Green, Blue, NIR
+        if "green" in base_urls and "blue" in base_urls and "green" in curr_urls and "blue" in curr_urls:
+            base_bands = [base_urls["red"], base_urls["green"], base_urls["blue"], base_urls["nir"]]
+            curr_bands = [curr_urls["red"], curr_urls["green"], curr_urls["blue"], curr_urls["nir"]]
+            r_idx, g_idx, b_idx, n_idx = 1, 2, 3, 4
+        else:
+            base_bands = [base_urls["red"], base_urls["nir"]]
+            curr_bands = [curr_urls["red"], curr_urls["nir"]]
+            r_idx, g_idx, b_idx, n_idx = 1, 1, 2, 2
+
+        VRTBuilder.create_multiband_vrt(baseline_vrt, base_bands)
+        VRTBuilder.create_multiband_vrt(current_vrt, curr_bands)
 
         # 4. Execute C++ core audit
-        ret = execute_auditor(args, polygon_path, baseline_vrt, current_vrt, red_band=1, nir_band=2)
+        ret = execute_auditor(args, polygon_path, baseline_vrt, current_vrt, red_band=r_idx, green_band=g_idx, blue_band=b_idx, nir_band=n_idx)
         sys.exit(ret)
 
     except ConnectionError as ce:

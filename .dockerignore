@@ -1,0 +1,11 @@
+.git
+.gitignore
+build/
+*.o
+*.tif
+*.png
+*.tmp
+__pycache__/
+*.pyc
+.cache/
+Testing/
