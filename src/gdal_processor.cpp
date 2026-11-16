@@ -5,6 +5,7 @@
 #include <cmath>
 #include <limits>
 #include <ogr_spatialref.h>
+#include <ogr_api.h>
 #include <cpl_conv.h>
 
 GDALProcessor::GDALProcessor() {
@@ -14,7 +15,96 @@ GDALProcessor::GDALProcessor() {
 
 GDALProcessor::~GDALProcessor() {}
 
-RasterPatch GDALProcessor::extractPatch(const std::string& vectorPath, const std::string& rasterPath) {
+ParcelMetadata GDALProcessor::getParcelMetadata(const std::string& vectorPath, const std::string& referenceRasterPath) {
+    ParcelMetadata meta;
+
+    GDALDataset* poVectorDS = static_cast<GDALDataset*>(
+        GDALOpenEx(vectorPath.c_str(), GDAL_OF_VECTOR, nullptr, nullptr, nullptr));
+    if (!poVectorDS) {
+        throw std::runtime_error("Failed to open vector file: " + vectorPath);
+    }
+
+    OGRLayer* poLayer = poVectorDS->GetLayer(0);
+    if (!poLayer) {
+        GDALClose(poVectorDS);
+        throw std::runtime_error("Vector file contains no layers: " + vectorPath);
+    }
+
+    // Determine target SRS from reference raster if available
+    const OGRSpatialReference* poRasterSRS = nullptr;
+    OGRSpatialReference oRasterSRS;
+    GDALDataset* poRasterDS = static_cast<GDALDataset*>(GDALOpen(referenceRasterPath.c_str(), GA_ReadOnly));
+    if (poRasterDS) {
+        poRasterSRS = poRasterDS->GetSpatialRef();
+        if (!poRasterSRS) {
+            const char* pszWkt = poRasterDS->GetProjectionRef();
+            if (pszWkt && pszWkt[0] != '\0') {
+                oRasterSRS.importFromWkt(pszWkt);
+                poRasterSRS = &oRasterSRS;
+            }
+        }
+    }
+
+    const OGRSpatialReference* poVectorSRS = poLayer->GetSpatialRef();
+    OGRSpatialReference oDefaultVectorSRS;
+    if (!poVectorSRS) {
+        oDefaultVectorSRS.SetWellKnownGeogCS("WGS84");
+        oDefaultVectorSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+        poVectorSRS = &oDefaultVectorSRS;
+    }
+
+    OGRCoordinateTransformation* poCT = nullptr;
+    if (poVectorSRS && poRasterSRS && !poVectorSRS->IsSame(poRasterSRS)) {
+        poCT = OGRCreateCoordinateTransformation(poVectorSRS, poRasterSRS);
+    }
+
+    poLayer->ResetReading();
+    OGRFeature* poFeature = nullptr;
+    double totalAreaM2 = 0.0;
+    bool metadataExtracted = false;
+
+    while ((poFeature = poLayer->GetNextFeature()) != nullptr) {
+        meta.featureCount++;
+
+        if (!metadataExtracted) {
+            int idxAsset = poFeature->GetFieldIndex("asset_id");
+            if (idxAsset >= 0 && poFeature->IsFieldSetAndNotNull(idxAsset)) {
+                meta.assetId = poFeature->GetFieldAsString(idxAsset);
+            }
+            int idxComm = poFeature->GetFieldIndex("commodity");
+            if (idxComm >= 0 && poFeature->IsFieldSetAndNotNull(idxComm)) {
+                meta.commodity = poFeature->GetFieldAsString(idxComm);
+            }
+            metadataExtracted = true;
+        }
+
+        OGRGeometry* poGeom = poFeature->GetGeometryRef();
+        if (poGeom) {
+            OGRGeometry* poGeomTrans = poGeom->clone();
+            if (poCT) {
+                poGeomTrans->transform(poCT);
+            }
+            // For projected coordinate systems in meters (e.g. UTM), OGR_G_Area returns square meters
+            totalAreaM2 += OGR_G_Area(reinterpret_cast<OGRGeometryH>(poGeomTrans));
+            OGRGeometryFactory::destroyGeometry(poGeomTrans);
+        }
+        OGRFeature::DestroyFeature(poFeature);
+    }
+
+    if (poCT) {
+        OCTDestroyCoordinateTransformation(poCT);
+    }
+    if (poRasterDS) {
+        GDALClose(poRasterDS);
+    }
+    GDALClose(poVectorDS);
+
+    // Convert square meters to hectares (1 ha = 10,000 m2)
+    meta.areaHectares = totalAreaM2 / 10000.0;
+    return meta;
+}
+
+RasterPatch GDALProcessor::extractPatch(const std::string& vectorPath, const std::string& rasterPath, int targetWidth, int targetHeight) {
     GDALDataset* poVectorDS = static_cast<GDALDataset*>(
         GDALOpenEx(vectorPath.c_str(), GDAL_OF_VECTOR, nullptr, nullptr, nullptr));
     if (!poVectorDS) {
@@ -113,7 +203,7 @@ RasterPatch GDALProcessor::extractPatch(const std::string& vectorPath, const std
 
     // Map all four corners of the bounding box to pixel coordinates to handle any orientation/rotation
     double cornerX[4] = {sCombinedEnvelope.MinX, sCombinedEnvelope.MinX, sCombinedEnvelope.MaxX, sCombinedEnvelope.MaxX};
-    double cornerY[4] = {sCombinedEnvelope.MinY, sCombinedEnvelope.MaxY, sCombinedEnvelope.MinY, sCombinedEnvelope.MaxY};
+    double cornerY[4] = {sCombinedEnvelope.MinY, sCombinedEnvelope.MinY, sCombinedEnvelope.MinY, sCombinedEnvelope.MaxY};
 
     double minCol = std::numeric_limits<double>::max();
     double maxCol = std::numeric_limits<double>::lowest();
@@ -163,16 +253,22 @@ RasterPatch GDALProcessor::extractPatch(const std::string& vectorPath, const std
         throw std::runtime_error("Raster dataset contains no bands: " + rasterPath);
     }
 
+    // Determine output patch buffer size (support resampling to target dimensions)
+    int outWidth = (targetWidth > 0) ? targetWidth : nWidth;
+    int outHeight = (targetHeight > 0) ? targetHeight : nHeight;
+
     RasterPatch patch;
-    patch.width = nWidth;
-    patch.height = nHeight;
+    patch.width = outWidth;
+    patch.height = outHeight;
     patch.bands = nBands;
-    patch.data.resize(static_cast<size_t>(nWidth) * nHeight * nBands);
+    patch.pixelSizeX = std::abs(adfGeoTransform[1]);
+    patch.pixelSizeY = std::abs(adfGeoTransform[5]);
+    patch.data.resize(static_cast<size_t>(outWidth) * outHeight * nBands);
 
     CPLErr err = poRasterDS->RasterIO(
         GF_Read,
         nXOff, nYOff, nWidth, nHeight,
-        patch.data.data(), nWidth, nHeight,
+        patch.data.data(), outWidth, outHeight,
         GDT_Float32,
         nBands, nullptr,
         0, 0, 0
