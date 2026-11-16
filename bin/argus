@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Argus Unified CLI Entrypoint
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+if [ "$1" = "audit" ]; then
+    shift
+    exec python3 "${ROOT_DIR}/scripts/argus_cloud_audit.py" "$@"
+elif [ "$1" = "local-audit" ]; then
+    shift
+    exec "${ROOT_DIR}/esg_auditor" "$@"
+elif [ "$1" = "test" ]; then
+    shift
+    exec "${ROOT_DIR}/tests/run_tests.sh" "$@"
+else
+    echo "ARGUS: Automated Satellite ESG & EUDR Compliance Suite"
+    echo "Usage:"
+    echo "  ./bin/argus audit <polygon.geojson> [options]         # Cloud STAC autonomous audit"
+    echo "  ./bin/argus local-audit <polygon> <base> <curr>      # Direct local C++ audit"
+    echo "  ./bin/argus test                                     # Run full test suite"
+    exit 1
+fi

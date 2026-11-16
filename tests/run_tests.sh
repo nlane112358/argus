@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "${ROOT_DIR}"
 
-echo "[*] Step 1: Building project with make..."
+echo "[*] Step 1: Building C++ project with make..."
 make clean
 make
 
@@ -53,6 +53,13 @@ if [ "$OUTSIDE_EXIT" -eq 0 ]; then
 fi
 echo "[+] Negative test caught out-of-bounds error gracefully."
 
+echo "[*] Step 8: Running STAC Cloud Ingestion & VRT Builder unit tests..."
+python3 tests/test_stac_module.py
+
+echo "[*] Step 9: Running Unified CLI Autonomous Cloud Audit..."
+./bin/argus audit tests/fixtures/test_farm_wgs84.geojson --mock > /dev/null
+echo "[+] Unified CLI autonomous audit passed."
+
 echo "================================================="
-echo "[+] ALL PHASE 2 TESTS PASSED SUCCESSFULLY! (6/6)"
+echo "[+] ALL ARGUS COMPLIANCE TESTS PASSED! (9/9)"
 echo "================================================="
