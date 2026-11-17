@@ -60,6 +60,15 @@ echo "[*] Step 9: Running Unified CLI Autonomous Cloud Audit..."
 ./bin/argus audit tests/fixtures/test_farm_wgs84.geojson --mock > /dev/null
 echo "[+] Unified CLI autonomous audit passed."
 
+echo "[*] Step 10: Testing EUDR Compliance PDF Certificate Generation..."
+./bin/argus audit tests/fixtures/test_farm_wgs84.geojson --mock --pdf /tmp/test_eudr_cert.pdf > /dev/null
+if [ ! -f /tmp/test_eudr_cert.pdf ]; then
+    echo "[!] Error: PDF certificate was not created!"
+    exit 1
+fi
+rm -f /tmp/test_eudr_cert.pdf
+echo "[+] EUDR Compliance PDF certificate successfully generated."
+
 echo "================================================="
-echo "[+] ALL ARGUS COMPLIANCE TESTS PASSED! (9/9)"
+echo "[+] ALL ARGUS COMPLIANCE TESTS PASSED! (10/10)"
 echo "================================================="

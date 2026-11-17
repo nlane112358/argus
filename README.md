@@ -29,19 +29,29 @@ Given a supplier's farm boundary (GeoJSON, Shapefile, or KML), Argus autonomousl
 ### 1. Autonomous Cloud Audit
 Audit any farm parcel anywhere on Earth with a single command:
 ```bash
-# Run cloud audit and export visual comparison PNG:
-./bin/argus audit farm_parcel.geojson --save-png audit_map.png
+# Run cloud audit and export visual comparison PNG and PDF certificate:
+./bin/argus audit farm_parcel.geojson --save-png audit_map.png --pdf certificate.pdf
 
 # Output machine-readable JSON for automated ERP pipelines:
 ./bin/argus audit farm_parcel.geojson --json
 ```
 
-### 2. Offline / Mock Mode (For Testing & CI/CD)
+### 2. Streamlit Web Dashboard & FastAPI Backend
+Launch the web UI or the REST API server:
 ```bash
-./bin/argus audit farm_parcel.geojson --mock --save-png mock_report.png
+# Launch Streamlit interactive web dashboard (http://localhost:8501):
+./bin/argus serve-ui
+
+# Launch FastAPI REST API server (http://localhost:8000 / http://localhost:8000/docs):
+./bin/argus serve-api
 ```
 
-### 3. Run Test Suite
+### 3. Offline / Mock Mode (For Testing & CI/CD)
+```bash
+./bin/argus audit farm_parcel.geojson --mock --save-png mock_report.png --pdf mock_cert.pdf
+```
+
+### 4. Run Test Suite
 ```bash
 ./bin/argus test
 ```
@@ -61,14 +71,14 @@ When `--save-png <path.png>` is passed, Argus generates a 3-panel comparison das
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full AWS, GCP, and Kubernetes deployment instructions.
 
-### Run via Docker
+### Run via Docker & Docker Compose
 ```bash
-# Build the container:
-docker build -t argus-auditor:latest .
+# Launch the full web UI and API stack with one command:
+docker compose up
 
-# Run audit with local volume mount:
-docker run --rm -v $(pwd):/data argus-auditor:latest audit farm_parcel.geojson --save-png audit_map.png
+# Streamlit dashboard: http://localhost:8501
+# FastAPI interactive Swagger docs: http://localhost:8000/docs
 
-# Run with NVIDIA GPU acceleration:
-docker run --rm --gpus all -v $(pwd):/data argus-auditor:latest audit farm_parcel.geojson --save-png audit_map.png
+# Or run one-off CLI audits in Docker:
+docker run --rm -v $(pwd):/data argus-eudr-auditor:latest audit farm_parcel.geojson --pdf certificate.pdf
 ```

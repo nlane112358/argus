@@ -81,6 +81,13 @@ def generate_audit_png(
     is_compliant: bool = True,
     loss_percent: float = 0.0,
 ) -> str:
+    # High-performance Cloud-Optimized GeoTIFF HTTP/2 and caching options
+    gdal.SetConfigOption("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")
+    gdal.SetConfigOption("GDAL_HTTP_MERGE_CONSECUTIVE_RANGES", "YES")
+    gdal.SetConfigOption("GDAL_HTTP_MULTIPLEX", "YES")
+    gdal.SetConfigOption("GDAL_HTTP_VERSION", "2")
+    gdal.SetConfigOption("VSI_CACHE", "YES")
+    gdal.SetConfigOption("VSI_CACHE_SIZE", "67108864")
     warp_opts_base = gdal.WarpOptions(
         format="MEM",
         cutlineDSName=vector_path,

@@ -11,6 +11,15 @@
 GDALProcessor::GDALProcessor() {
     GDALAllRegister();
     OGRRegisterAll();
+
+    // High-performance Cloud-Optimized GeoTIFF (COG) HTTP/2 tuning
+    CPLSetConfigOption("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR");
+    CPLSetConfigOption("GDAL_HTTP_MERGE_CONSECUTIVE_RANGES", "YES");
+    CPLSetConfigOption("GDAL_HTTP_MULTIPLEX", "YES");
+    CPLSetConfigOption("GDAL_HTTP_VERSION", "2");
+    CPLSetConfigOption("VSI_CACHE", "YES");
+    CPLSetConfigOption("VSI_CACHE_SIZE", "67108864"); // 64 MB chunk cache
+    CPLSetConfigOption("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", ".tif,.vrt,.json");
 }
 
 GDALProcessor::~GDALProcessor() {}

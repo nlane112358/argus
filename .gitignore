@@ -68,8 +68,11 @@ Testing/
 .cache/
 
 # Argus specific
+.venv/
+venv/
 esg_auditor
 *.png
+*.pdf
 farm_parcel.geojson
 tests/fixtures/*.tif
 tests/fixtures/*.geojson

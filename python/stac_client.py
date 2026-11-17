@@ -7,6 +7,7 @@ Queries Sentinel-2 L2A Cloud-Optimized GeoTIFFs (COGs) for bi-temporal EUDR audi
 import json
 import urllib.request
 import urllib.error
+import concurrent.futures
 from typing import Dict, List, Optional, Tuple
 from osgeo import ogr, osr
 
@@ -106,6 +107,22 @@ class STACClient:
                 return data.get("features", [])
         except urllib.error.URLError as e:
             raise ConnectionError(f"STAC search request failed to {self.search_url}: {e}")
+
+    def search_bi_temporal(
+        self,
+        bbox: Tuple[float, float, float, float],
+        baseline_window: str,
+        current_window: str,
+        max_cloud_cover: float = 20.0
+    ) -> Tuple[List[Dict], List[Dict]]:
+        """
+        Queries both baseline and current Sentinel-2 epochs simultaneously
+        using concurrent threads to halve STAC network discovery latency.
+        """
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future_base = executor.submit(self.search_scenes, bbox, baseline_window, max_cloud_cover)
+            future_curr = executor.submit(self.search_scenes, bbox, current_window, max_cloud_cover)
+            return future_base.result(), future_curr.result()
 
     @staticmethod
     def extract_band_urls(stac_item: Dict) -> Dict[str, str]:

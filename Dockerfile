@@ -1,6 +1,6 @@
 # ==============================================================================
 # ARGUS ESG & EUDR Compliance Auditor
-# Multi-arch CUDA & GDAL Cloud Container
+# Multi-arch CUDA & GDAL Cloud Container with FastAPI & Streamlit
 # Compatible with AWS (ECS/EKS/EC2 g4dn/g5) and GCP (GKE/Compute Engine/Cloud Run)
 # ==============================================================================
 
@@ -28,6 +28,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-gdal \
     && rm -rf /var/lib/apt/lists/*
 
+# Install FastAPI, Streamlit, and PDF generation dependencies
+WORKDIR /app
+COPY requirements.txt /app/requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
+
 # GDAL Cloud-Optimized GeoTIFF (COG) / vsicurl performance tuning
 ENV GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR \
     GDAL_HTTP_TIMEOUT=30 \
@@ -36,27 +41,28 @@ ENV GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
-WORKDIR /app
-
 # Copy application source code
 COPY include/ /app/include/
 COPY src/ /app/src/
 COPY python/ /app/python/
 COPY scripts/ /app/scripts/
+COPY server/ /app/server/
 COPY bin/ /app/bin/
 COPY tests/ /app/tests/
 COPY Makefile /app/Makefile
 COPY CMakeLists.txt /app/CMakeLists.txt
+COPY farm_parcel.geojson /app/farm_parcel.geojson
 
 # Compile C++ and CUDA binaries
 RUN make clean && make && chmod +x /app/bin/argus /app/scripts/argus_cloud_audit.py
 
 # Create a shared data directory for mounting input GeoJSONs and output reports
 RUN mkdir -p /data
-
-# Default working directory for container execution
 WORKDIR /data
 
-# Container entrypoint
+# Expose ports for FastAPI (8000) and Streamlit (8501)
+EXPOSE 8000 8501
+
+# Default entrypoint
 ENTRYPOINT ["/app/bin/argus"]
 CMD ["audit", "--help"]

@@ -16,6 +16,15 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+# High-performance Cloud-Optimized GeoTIFF (COG) HTTP/2 tuning
+os.environ.setdefault("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")
+os.environ.setdefault("GDAL_HTTP_MERGE_CONSECUTIVE_RANGES", "YES")
+os.environ.setdefault("GDAL_HTTP_MULTIPLEX", "YES")
+os.environ.setdefault("GDAL_HTTP_VERSION", "2")
+os.environ.setdefault("VSI_CACHE", "YES")
+os.environ.setdefault("VSI_CACHE_SIZE", "67108864")
+os.environ.setdefault("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", ".tif,.vrt,.json")
+
 # Add project root to sys.path
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
@@ -24,6 +33,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from python.stac_client import STACClient, DEFAULT_STAC_ENDPOINT
 from python.vrt_builder import VRTBuilder
 from python.visualizer import generate_audit_png
+from python.pdf_generator import generate_eudr_pdf
 
 
 DEFAULT_BASELINE_WINDOW = "2020-09-01T00:00:00Z/2020-12-31T23:59:59Z"
@@ -80,6 +90,11 @@ def parse_args():
         help="Path to export visual comparison PNG (e.g. audit_map.png)",
     )
     parser.add_argument(
+        "--pdf",
+        default=None,
+        help="Path to export official EUDR PDF Compliance Dossier (e.g. certificate.pdf)",
+    )
+    parser.add_argument(
         "--output-vrt-dir",
         default=None,
         help="Directory to save generated VRT descriptor files (defaults to temporary directory)",
@@ -117,13 +132,19 @@ def run_mock_audit(args, polygon_path: str, vrt_dir: str):
 
 
 def execute_auditor(args, polygon_path: str, baseline_path: str, current_path: str, red_band: int = 1, green_band: int = 2, blue_band: int = 3, nir_band: int = 4):
-    if args.save_png:
+    png_path = args.save_png
+    tmp_png = None
+    if not png_path and args.pdf:
+        tmp_png = tempfile.mktemp(suffix=".png")
+        png_path = tmp_png
+
+    if png_path:
         try:
             generate_audit_png(
-                polygon_path, baseline_path, current_path, args.save_png,
+                polygon_path, baseline_path, current_path, png_path,
                 red_band=red_band, green_band=green_band, blue_band=blue_band, nir_band=nir_band
             )
-            if not args.json:
+            if not args.json and args.save_png:
                 print(f"[+] Exported True-Color Optical audit comparison map: {args.save_png}")
         except Exception as e:
             if not args.json:
@@ -142,10 +163,46 @@ def execute_auditor(args, polygon_path: str, baseline_path: str, current_path: s
         "--nir", str(nir_band),
         "--tolerance", str(args.tolerance),
     ]
-    if args.json:
+    if args.json or args.pdf:
         cmd.append("--json")
 
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    raw_output = result.stdout
+
+    if args.pdf:
+        try:
+            start_idx = raw_output.find("{")
+            end_idx = raw_output.rfind("}")
+            if start_idx != -1 and end_idx != -1:
+                report_dict = json.loads(raw_output[start_idx : end_idx + 1])
+                generate_eudr_pdf(report_dict, png_path or "", args.pdf)
+                if not args.json:
+                    print(f"[+] Successfully generated official EUDR PDF Certificate: {args.pdf}")
+        except Exception as e:
+            print(f"[!] Warning: Could not generate PDF certificate: {e}", file=sys.stderr)
+
+    if tmp_png and os.path.exists(tmp_png):
+        os.remove(tmp_png)
+
+    # If the user requested human-readable output (and not --json), print the C++ text output
+    if not args.json:
+        # Re-run for human-readable display if --pdf was used with default text mode
+        if args.pdf:
+            cmd_display = [
+                str(binary_path),
+                polygon_path,
+                baseline_path,
+                current_path,
+                "--red", str(red_band),
+                "--nir", str(nir_band),
+                "--tolerance", str(args.tolerance),
+            ]
+            subprocess.run(cmd_display)
+        else:
+            sys.stdout.write(raw_output)
+    else:
+        sys.stdout.write(raw_output)
+
     return result.returncode
 
 
@@ -171,35 +228,34 @@ def main():
         if not args.json:
             print(f"[+] Bounding Box (WGS84): [{bbox[0]:.4f}, {bbox[1]:.4f}, {bbox[2]:.4f}, {bbox[3]:.4f}]")
 
-        # 1. Query Baseline (2020 Cutoff)
+        # 1. Query Baseline and Current Epochs in Parallel
         if not args.json:
-            print(f"[*] Querying STAC for baseline epoch: {args.baseline_window} ...")
-        base_scenes = client.search_scenes(bbox, args.baseline_window, max_cloud_cover=args.max_cloud_cover)
+            print(f"[*] Querying STAC catalogs concurrently for baseline ({args.baseline_window}) and current epoch ({args.current_window})...")
+        base_scenes, curr_scenes = client.search_bi_temporal(
+            bbox, args.baseline_window, args.current_window, max_cloud_cover=args.max_cloud_cover
+        )
         if not base_scenes:
             raise RuntimeError(
                 f"No Sentinel-2 scenes with cloud cover < {args.max_cloud_cover}% found for baseline window: {args.baseline_window}"
             )
-        best_base_scene = base_scenes[0]
-        base_urls = client.extract_band_urls(best_base_scene)
-        base_id = best_base_scene.get("id", "baseline_scene")
-        base_date = best_base_scene.get("properties", {}).get("datetime", "2020")
-        if not args.json:
-            print(f"[+] Selected Baseline Scene: {base_id} ({base_date})")
-
-        # 2. Query Current Epoch
-        if not args.json:
-            print(f"[*] Querying STAC for current epoch: {args.current_window} ...")
-        curr_scenes = client.search_scenes(bbox, args.current_window, max_cloud_cover=args.max_cloud_cover)
         if not curr_scenes:
             raise RuntimeError(
                 f"No Sentinel-2 scenes with cloud cover < {args.max_cloud_cover}% found for current window: {args.current_window}"
             )
+
+        best_base_scene = base_scenes[0]
+        base_urls = client.extract_band_urls(best_base_scene)
+        base_id = best_base_scene.get("id", "baseline_scene")
+        base_date = best_base_scene.get("properties", {}).get("datetime", "2020")
+
         best_curr_scene = curr_scenes[0]
         curr_urls = client.extract_band_urls(best_curr_scene)
         curr_id = best_curr_scene.get("id", "current_scene")
         curr_date = best_curr_scene.get("properties", {}).get("datetime", "recent")
+
         if not args.json:
-            print(f"[+] Selected Current Scene: {curr_id} ({curr_date})")
+            print(f"[+] Selected Baseline Scene: {base_id} ({base_date})")
+            print(f"[+] Selected Current Scene:  {curr_id} ({curr_date})")
 
         # 3. Build VRTs for zero-copy streaming
         baseline_vrt = os.path.join(vrt_dir, f"{base_id}_bands.vrt")
