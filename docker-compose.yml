@@ -1,24 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. Streamlit Web Dashboard (Port 8501)
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: argus-eudr-auditor:latest
-    container_name: argus-frontend
-    ports:
-      - "8501:8501"
-    volumes:
-      - ./:/data
-    environment:
-      - PYTHONUNBUFFERED=1
-      - GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR
-      - GDAL_HTTP_TIMEOUT=30
-    command: ["serve-ui"]
-
-  # 2. FastAPI REST API Engine (Port 8000)
+  # FastAPI REST API Engine (Port 8000)
   api:
     build:
       context: .
@@ -35,7 +18,7 @@ services:
       - GDAL_HTTP_TIMEOUT=30
     command: ["serve-api"]
 
-  # 3. Ad-hoc CLI Runner
+  # Ad-hoc CLI Runner
   cli:
     build:
       context: .

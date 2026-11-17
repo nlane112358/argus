@@ -15,9 +15,9 @@ if [ "$1" = "audit" ]; then
 elif [ "$1" = "serve-api" ]; then
     shift
     exec python3 -m uvicorn server.api:app --host 0.0.0.0 --port 8000 "$@"
-elif [ "$1" = "serve-ui" ]; then
+elif [ "$1" = "serve-apm" ]; then
     shift
-    exec python3 -m streamlit run "${ROOT_DIR}/server/app.py" --server.port 8501 "$@"
+    exec go run "${ROOT_DIR}/main.go" "$@"
 elif [ "$1" = "local-audit" ]; then
     shift
     exec "${ROOT_DIR}/esg_auditor" "$@"
@@ -29,7 +29,7 @@ else
     echo "Usage:"
     echo "  ./bin/argus audit <polygon.geojson> [options]         # Cloud STAC autonomous audit"
     echo "  ./bin/argus serve-api                                # Launch FastAPI REST API server (port 8000)"
-    echo "  ./bin/argus serve-ui                                 # Launch Streamlit web dashboard (port 8501)"
+    echo "  ./bin/argus serve-apm                                # Launch Datadog DRUIDS APM dashboard (port 8080)"
     echo "  ./bin/argus local-audit <polygon> <base> <curr>      # Direct local C++ audit"
     echo "  ./bin/argus test                                     # Run full test suite"
     exit 1

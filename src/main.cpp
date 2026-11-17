@@ -58,6 +58,14 @@ int main(int argc, char* argv[]) {
     std::string baselineRasterPath = argv[2];
     std::string currentRasterPath = argv[3];
 
+    // Auto-detect argument order if (baseline.tif, target.tif, polygon.geojson) is passed
+    if ((vectorPath.rfind(".tif") != std::string::npos || vectorPath.rfind(".vrt") != std::string::npos) &&
+        (currentRasterPath.rfind(".geojson") != std::string::npos || currentRasterPath.rfind(".json") != std::string::npos)) {
+        vectorPath = argv[3];
+        baselineRasterPath = argv[1];
+        currentRasterPath = argv[2];
+    }
+
     bool outputJson = false;
     BandConfig bandConfig;
     bandConfig.redBandIndex = 2; // Default Band 3 (0-indexed 2)

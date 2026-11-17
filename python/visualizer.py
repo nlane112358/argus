@@ -8,7 +8,7 @@ deforestation risk detection overlays.
 import os
 import sys
 import numpy as np
-from osgeo import gdal, ogr
+from osgeo import gdal, ogr, osr
 
 gdal.UseExceptions()
 
@@ -183,6 +183,124 @@ def generate_audit_png(
     curr_ds = None
 
     return output_png_path
+
+
+def generate_optical_products(
+    vector_path: str,
+    baseline_raster: str,
+    current_raster: str,
+    output_dir: str,
+    red_band: int = 1,
+    green_band: int = 2,
+    blue_band: int = 3,
+    nir_band: int = 4,
+) -> dict:
+    """Write aligned, parcel-clipped RGB epochs and an NDVI-change overlay.
+
+    The returned corner coordinates let MapLibre place each PNG at its real
+    footprint on the map. Alpha is transparent outside the parcel cutline.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    warp_opts_base = gdal.WarpOptions(
+        format="MEM",
+        cutlineDSName=vector_path,
+        cropToCutline=True,
+        dstNodata=-9999.0,
+        resampleAlg="bilinear",
+    )
+    base_ds = gdal.Warp("", baseline_raster, options=warp_opts_base)
+    if not base_ds:
+        raise RuntimeError(f"Could not crop baseline raster to vector cutline: {baseline_raster}")
+
+    width, height = base_ds.RasterXSize, base_ds.RasterYSize
+    gt = base_ds.GetGeoTransform()
+    bounds = [gt[0], gt[3] + height * gt[5], gt[0] + width * gt[1], gt[3]]
+    warp_opts_current = gdal.WarpOptions(
+        format="MEM",
+        cutlineDSName=vector_path,
+        outputBounds=bounds,
+        outputBoundsSRS=base_ds.GetProjection(),
+        width=width,
+        height=height,
+        dstSRS=base_ds.GetProjection(),
+        dstNodata=-9999.0,
+        resampleAlg="bilinear",
+    )
+    curr_ds = gdal.Warp("", current_raster, options=warp_opts_current)
+    if not curr_ds:
+        raise RuntimeError(f"Could not align current raster to baseline: {current_raster}")
+
+    def read_band(ds, index):
+        band = ds.GetRasterBand(index)
+        if not band:
+            raise RuntimeError(f"Raster is missing requested band {index}")
+        return band.ReadAsArray().astype(np.float32)
+
+    b_r, b_g, b_b, b_nir = [read_band(base_ds, i) for i in (red_band, green_band, blue_band, nir_band)]
+    c_r, c_g, c_b, c_nir = [read_band(curr_ds, i) for i in (red_band, green_band, blue_band, nir_band)]
+    all_bands = (b_r, b_g, b_b, b_nir, c_r, c_g, c_b, c_nir)
+    nodata_mask = np.logical_or.reduce([
+        (band == -9999.0) | ~np.isfinite(band)
+        for band in all_bands
+    ])
+
+    rgb_base = make_true_color_rgb(b_r, b_g, b_b, nodata_mask)
+    rgb_curr = make_true_color_rgb(c_r, c_g, c_b, nodata_mask)
+    delta_ndvi = np.clip(
+        (c_nir - c_r) / (c_nir + c_r + 1e-6) - (b_nir - b_r) / (b_nir + b_r + 1e-6),
+        -2.0,
+        2.0,
+    )
+    rgb_difference = make_deforestation_overlay(rgb_curr, delta_ndvi, nodata_mask)
+    alpha = np.where(nodata_mask, 0, 255).astype(np.uint8)
+
+    def write_rgba(path, rgb):
+        rgba = np.dstack([rgb, alpha])
+        mem_ds = gdal.GetDriverByName("MEM").Create("", width, height, 4, gdal.GDT_Byte)
+        mem_ds.SetGeoTransform(gt)
+        mem_ds.SetProjection(base_ds.GetProjection())
+        color_interpretations = [gdal.GCI_RedBand, gdal.GCI_GreenBand, gdal.GCI_BlueBand, gdal.GCI_AlphaBand]
+        for i in range(4):
+            band = mem_ds.GetRasterBand(i + 1)
+            band.SetColorInterpretation(color_interpretations[i])
+            band.WriteArray(rgba[:, :, i])
+        png = gdal.GetDriverByName("PNG").CreateCopy(path, mem_ds)
+        if not png:
+            raise RuntimeError(f"Could not write optical image: {path}")
+        png = None
+        mem_ds = None
+
+    paths = {
+        "baseline": os.path.join(output_dir, "baseline.png"),
+        "current": os.path.join(output_dir, "current.png"),
+        "difference": os.path.join(output_dir, "difference.png"),
+    }
+    write_rgba(paths["baseline"], rgb_base)
+    write_rgba(paths["current"], rgb_curr)
+    write_rgba(paths["difference"], rgb_difference)
+
+    src_srs = osr.SpatialReference()
+    src_srs.ImportFromWkt(base_ds.GetProjection())
+    wgs84 = osr.SpatialReference()
+    wgs84.ImportFromEPSG(4326)
+    wgs84.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    transform = osr.CoordinateTransformation(src_srs, wgs84)
+    pixel_corners = [
+        (0, 0),
+        (width, 0),
+        (width, height),
+        (0, height),
+    ]
+    image_coordinates = []
+    for px, py in pixel_corners:
+        x = gt[0] + px * gt[1] + py * gt[2]
+        y = gt[3] + px * gt[4] + py * gt[5]
+        lon, lat, _ = transform.TransformPoint(x, y)
+        image_coordinates.append([lon, lat])
+
+    curr_ds = None
+    base_ds = None
+    return {"paths": paths, "image_coordinates": image_coordinates}
 
 
 if __name__ == "__main__":

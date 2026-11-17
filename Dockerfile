@@ -1,6 +1,6 @@
 # ==============================================================================
 # ARGUS ESG & EUDR Compliance Auditor
-# Multi-arch CUDA & GDAL Cloud Container with FastAPI & Streamlit
+# Multi-arch CUDA & GDAL Cloud Container with FastAPI
 # Compatible with AWS (ECS/EKS/EC2 g4dn/g5) and GCP (GKE/Compute Engine/Cloud Run)
 # ==============================================================================
 
@@ -9,7 +9,10 @@ FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 # Prevent interactive prompts during apt package installation
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
-    PATH="/app/bin:${PATH}"
+    CUDA_HOME=/usr/local/cuda \
+    PATH="/usr/local/cuda/bin:/app/bin:${PATH}" \
+    LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/cuda/targets/x86_64-linux/lib:/usr/local/cuda/targets/sbsa-linux/lib:${LD_LIBRARY_PATH}" \
+    LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/cuda/targets/x86_64-linux/lib:/usr/local/cuda/targets/sbsa-linux/lib:${LIBRARY_PATH}"
 
 # Install core build tools, C++17 compilers, GDAL, and Python 3
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -28,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-gdal \
     && rm -rf /var/lib/apt/lists/*
 
-# Install FastAPI, Streamlit, and PDF generation dependencies
+# Install FastAPI and PDF generation dependencies
 WORKDIR /app
 COPY requirements.txt /app/requirements.txt
 RUN pip3 install --no-cache-dir -r requirements.txt
@@ -60,8 +63,8 @@ RUN make clean && make && chmod +x /app/bin/argus /app/scripts/argus_cloud_audit
 RUN mkdir -p /data
 WORKDIR /data
 
-# Expose ports for FastAPI (8000) and Streamlit (8501)
-EXPOSE 8000 8501
+# Expose FastAPI
+EXPOSE 8000
 
 # Default entrypoint
 ENTRYPOINT ["/app/bin/argus"]

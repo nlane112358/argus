@@ -23,8 +23,14 @@
 *.dll
 *.so.*
 
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
 # Fortran module files
 *.mod
+!go.mod
 *.smod
 
 # Compiled Static libraries

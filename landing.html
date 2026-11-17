@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101726">
+  <meta name="description" content="Argus helps enterprise teams screen sourcing parcels for post-2020 forest change and organize satellite-derived evidence for EUDR due diligence.">
+  <title>Argus | EUDR Parcel Screening & Evidence</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172236;
+      --muted: #5d6b7f;
+      --line: #dfe6ec;
+      --paper: #ffffff;
+      --canvas: #f5f8fa;
+      --night: #0a0d14;
+      --night-2: #121622;
+      --violet: #6832b7;
+      --violet-dark: #6832b7;
+      --mint: #a78bfa;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --shadow: 0 14px 34px rgba(5, 10, 18, .22);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    .wrap { width: min(1160px, calc(100% - 48px)); margin: 0 auto; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 9px;
+      color: #c8d3e2; font-size: 11px; font-weight: 700;
+      letter-spacing: .15em; text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--mint); }
+    .site-header {
+      position: absolute; inset: 0 0 auto; z-index: 3;
+      color: white; border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+    .nav { height: 78px; display: flex; align-items: center; justify-content: space-between; }
+    .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; }
+    .brand-mark {
+      width: 32px; height: 32px; display: grid; place-items: center;
+      border: 1px solid #343c50; border-radius: 5px;
+      background: #181e2c; color: #b99af5;
+    }
+    .brand-name { font-size: 16px; font-weight: 800; letter-spacing: .16em; }
+    .brand-sub { margin-left: 5px; padding-left: 13px; border-left: 1px solid rgba(255,255,255,.22); color: #b8c4d3; font-size: 12px; }
+    .nav-links { display: flex; align-items: center; gap: 30px; font-size: 13px; color: #c7d1de; }
+    .nav-links a { text-decoration: none; transition: color .18s ease; }
+    .nav-links a:hover { color: white; }
+    .button {
+      display: inline-flex; min-height: 46px; align-items: center; justify-content: center; gap: 10px;
+      padding: 0 19px; border: 1px solid transparent; border-radius: 7px;
+      font-size: 13px; font-weight: 700; text-decoration: none; transition: .18s ease;
+    }
+    .button-primary { color: white; background: var(--violet); }
+    .button-primary:hover { background: #773cd1; transform: translateY(-1px); }
+    .button-quiet { color: white; border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.04); }
+    .button-quiet:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.5); }
+    .button-light { color: #fff; background: var(--violet); }
+    .button-light:hover { background: #773cd1; transform: translateY(-1px); }
+    .arrow { font-size: 17px; line-height: 1; }
+    .hero {
+      position: relative; overflow: hidden; min-height: 620px; padding: 138px 0 76px;
+      color: white; background: #0a0d14;
+    }
+    .hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: 1.02fr .98fr; align-items: center; gap: 62px; }
+    .hero-copy { max-width: 570px; }
+    .hero h1 { margin: 21px 0 19px; font-size: clamp(42px, 5vw, 60px); line-height: 1.06; letter-spacing: -.04em; font-weight: 680; }
+    .hero h1 em { color: #c4b5fd; font-style: normal; }
+    .hero-lead { max-width: 570px; margin: 0; color: #c4cfdd; font-size: 18px; line-height: 1.65; }
+    .hero-actions { display: flex; gap: 12px; margin: 30px 0 28px; flex-wrap: wrap; }
+    .hero-meta { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; color: #a8b6c7; font-size: 12px; }
+    .hero-meta span { display: inline-flex; align-items: center; gap: 7px; }
+    .meta-dot { width: 5px; height: 5px; border-radius: 100%; background: var(--mint); }
+    .screen {
+      position: relative; border: 1px solid #2d364a; border-radius: 7px;
+      overflow: hidden; background: #121622; box-shadow: var(--shadow);
+    }
+    .screen-top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 15px; border-bottom: 1px solid #232b3b; color: #c3cfde;
+      font-size: 11px;
+    }
+    .screen-brand { display: flex; align-items: center; gap: 9px; font-weight: 700; color: #eff5fa; letter-spacing: .025em; }
+    .screen-brand-mark { width: 19px; height: 19px; border: 1px solid #4d3476; border-radius: 4px; color: #c4b5fd; background: #211633; display: grid; place-items: center; font-size: 10px; }
+    .sample-tag { color: #c5b4ee; border: 1px solid #49365f; background: #211a2b; border-radius: 3px; padding: 4px 7px; font-size: 9px; font-weight: 700; letter-spacing: .06em; }
+    .screen-content { padding: 18px; }
+    .screen-heading { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; margin-bottom: 15px; }
+    .screen-heading strong { display: block; color: #f2f6f9; font-size: 14px; }
+    .screen-heading small { display: block; margin-top: 3px; color: #91a2b5; font-size: 10px; }
+    .record-table { border: 1px solid #232b3b; border-radius: 4px; overflow: hidden; }
+    .record-head, .record-row { display: grid; grid-template-columns: 1.25fr .62fr .82fr .75fr; gap: 10px; align-items: center; padding: 10px 11px; }
+    .record-head { color: #8793a7; background: #0e121b; font-size: 9px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+    .record-row { min-height: 52px; color: #d4dbe6; border-top: 1px solid #232b3b; font-size: 10px; }
+    .record-plot strong { display: block; color: #e6eaf2; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .record-plot small { display: block; margin-top: 3px; color: #8190a4; font-size: 9px; }
+    .record-value { font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .record-state { width: fit-content; padding: 3px 6px; border-radius: 3px; font-size: 9px; white-space: nowrap; }
+    .record-state.flag { color: #fca5a5; background: #34171c; border: 1px solid #572028; }
+    .record-state.clear { color: #6ee7b7; background: #142f22; border: 1px solid #1e4d36; }
+    .sample-note { margin: 9px 0 0; color: #8793a7; font-size: 9px; line-height: 1.5; }
+    .screen-foot {
+      display: flex; justify-content: space-between; align-items: center; gap: 14px;
+      margin-top: 11px; padding-top: 10px; border-top: 1px solid #232b3b;
+      color: #9aabbb; font-size: 9px;
+    }
+    .hash { color: #b3c7d0; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .proof-strip { position: relative; z-index: 1; background: #fff; border-bottom: 1px solid var(--line); }
+    .proof-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+    .proof-item { padding: 20px 16px; display: block; border-right: 1px solid var(--line); }
+    .proof-item:first-child { padding-left: 0; }
+    .proof-item:last-child { border: 0; }
+    .proof-label { display: block; margin-bottom: 5px; color: var(--violet-dark); font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+    .proof-item strong { display: block; font-size: 12px; }
+    .proof-item small { color: var(--muted); font-size: 10px; }
+    section { scroll-margin-top: 20px; }
+    .section { padding: 92px 0; }
+    .section-muted { background: var(--canvas); }
+    .section-head { max-width: 690px; margin-bottom: 37px; }
+    .kicker { margin: 0 0 12px; color: var(--violet-dark); font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    h2 { margin: 0; font-size: clamp(30px, 3.6vw, 43px); line-height: 1.12; letter-spacing: -.035em; font-weight: 680; }
+    .section-intro { margin: 15px 0 0; color: var(--muted); font-size: 16px; line-height: 1.7; }
+    .workflow-grid { border-top: 1px solid var(--line); }
+    .workflow-card {
+      display: grid; grid-template-columns: 90px 230px minmax(0, 1fr); align-items: start; gap: 20px;
+      padding: 21px 0; border-bottom: 1px solid var(--line);
+    }
+    .step { color: #9b90e4; font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+    .workflow-card h3 { margin: 0; font-size: 17px; letter-spacing: -.02em; }
+    .workflow-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
+    .workflow-card .tagline { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; grid-column: 3; }
+    .tag { border: 1px solid #e1e6eb; border-radius: 4px; padding: 4px 7px; color: #536174; font-size: 10px; }
+    .feature-layout { display: grid; grid-template-columns: .88fr 1.12fr; gap: 70px; align-items: center; }
+    .feature-copy { max-width: 460px; }
+    .feature-copy p { margin: 17px 0 23px; color: var(--muted); font-size: 15px; line-height: 1.8; }
+    .feature-list { display: grid; gap: 15px; margin: 0; padding: 0; list-style: none; }
+    .feature-list li { display: flex; gap: 11px; align-items: flex-start; font-size: 13px; color: #344156; }
+    .check { flex: 0 0 19px; height: 19px; display: grid; place-items: center; margin-top: 1px; color: var(--green); background: #e2f5ec; border-radius: 50%; font-size: 11px; font-weight: 800; }
+    .pipeline {
+      padding: 21px; border: 1px solid #2d364a; border-radius: 7px; color: white; background: var(--night);
+    }
+    .pipeline-head { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding-bottom: 13px; border-bottom: 1px solid #232b3b; }
+    .pipeline-head strong { font-size: 13px; }
+    .pipeline-head small { color: #94a3b8; font-size: 10px; }
+    .code-command { margin: 14px 0 0; padding: 13px; border: 1px solid #232b3b; border-radius: 4px; background: #0a0d14; color: #dbe1ed; overflow-wrap: anywhere; white-space: pre-wrap; font: 11px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .code-command .prompt { color: #a78bfa; }
+    .code-output { margin-top: 13px; color: #9aa6b8; font: 10px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .code-output span { color: #d5ddeb; }
+    .pipeline-note { margin: 12px 0 0; color: #99a9b9; font-size: 10px; line-height: 1.6; }
+    .scope-layout { display: grid; grid-template-columns: .8fr 1.2fr; gap: 50px; align-items: start; }
+    .scope-note {
+      padding: 23px; border: 1px solid #d9e7df; border-left: 3px solid #5aab82;
+      border-radius: 7px; background: #f8fcf9;
+    }
+    .scope-note strong { display: block; margin-bottom: 8px; font-size: 14px; }
+    .scope-note p { margin: 0; color: #526558; font-size: 13px; line-height: 1.7; }
+    .scope-points { display: block; margin-top: 17px !important; border-top: 1px solid var(--line); }
+    .scope-point { padding: 13px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; }
+    .scope-point b { display: block; margin-bottom: 4px; font-size: 13px; }
+    .scope-point span { color: var(--muted); font-size: 12px; line-height: 1.55; display: block; }
+    .timeline {
+      display: flex; align-items: stretch; gap: 0; padding: 24px 28px;
+      border: 1px solid #dce3ea; border-radius: 9px; background: white;
+    }
+    .date-block { flex: 1; padding: 3px 24px; }
+    .date-block:first-child { padding-left: 0; }
+    .date-block + .date-block { border-left: 1px solid var(--line); }
+    .date-block small { display: block; color: var(--muted); font-size: 11px; }
+    .date-block strong { display: block; margin: 5px 0; font-size: 21px; letter-spacing: -.03em; }
+    .date-block span { color: #56667a; font-size: 11px; }
+    .date-caveat { margin: 14px 0 0; color: var(--muted); font-size: 11px; }
+    .date-caveat a { color: var(--violet-dark); }
+    .cta {
+      padding: 58px 0; color: white; background: var(--night);
+    }
+    .cta-inner { display: flex; align-items: center; justify-content: space-between; gap: 35px; }
+    .cta h2 { max-width: 660px; font-size: clamp(28px, 3.4vw, 39px); }
+    .cta p { margin: 11px 0 0; color: #aebdcb; font-size: 14px; }
+    .cta-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    footer { padding: 24px 0; color: #9aa8b8; background: #0c121d; font-size: 11px; }
+    .footer-inner { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+    .footer-links { display: flex; gap: 19px; }
+    .footer-links a { text-decoration: none; }
+    .footer-links a:hover { color: white; }
+    @media (max-width: 900px) {
+      .hero { padding-top: 125px; }
+      .hero-grid { grid-template-columns: 1fr; gap: 43px; }
+      .hero-copy { max-width: 690px; }
+      .screen { max-width: 650px; }
+      .proof-grid { grid-template-columns: 1fr 1fr; }
+      .proof-item:nth-child(2) { border-right: 0; }
+      .proof-item:nth-child(n+3) { border-top: 1px solid var(--line); }
+      .proof-item:nth-child(3) { padding-left: 0; }
+      .feature-layout, .scope-layout { grid-template-columns: 1fr; gap: 34px; }
+      .feature-copy { max-width: 680px; }
+    }
+    @media (max-width: 640px) {
+      .wrap { width: min(100% - 32px, 1160px); }
+      .nav { height: 68px; }
+      .brand-sub, .nav-links a:not(.button) { display: none; }
+      .nav-links { gap: 0; }
+      .nav-links .button { min-height: 39px; padding: 0 12px; font-size: 11px; }
+      .hero { min-height: 0; padding: 112px 0 58px; }
+      .hero h1 { font-size: 41px; }
+      .hero-lead { font-size: 16px; }
+      .button { min-height: 43px; }
+      .screen-content { padding: 12px; }
+      .screen-top { padding: 11px 12px; }
+      .record-head, .record-row { grid-template-columns: 1.15fr .62fr .75fr .7fr; gap: 6px; padding: 9px 7px; }
+      .record-head { font-size: 8px; }
+      .record-row { font-size: 9px; }
+      .record-state { font-size: 8px; padding: 3px 4px; }
+      .screen-foot { align-items: flex-start; flex-direction: column; gap: 4px; }
+      .proof-grid { grid-template-columns: 1fr 1fr; }
+      .proof-item { padding: 15px 8px; }
+      .proof-item:first-child, .proof-item:nth-child(3) { padding-left: 0; }
+      .proof-item strong { font-size: 11px; }
+      .proof-item small { font-size: 9px; }
+      .proof-label { font-size: 8px; }
+      .section { padding: 66px 0; }
+      .workflow-card { grid-template-columns: 42px minmax(0, 1fr); gap: 8px 12px; }
+      .workflow-card h3 { grid-column: 2; }
+      .workflow-card > div { grid-column: 2; }
+      .pipeline { padding: 17px; }
+      .timeline { flex-direction: column; padding: 19px; }
+      .date-block, .date-block:first-child { padding: 12px 0; }
+      .date-block + .date-block { border-left: 0; border-top: 1px solid var(--line); }
+      .date-block strong { font-size: 19px; }
+      .cta-inner { align-items: flex-start; flex-direction: column; }
+      .footer-inner { align-items: flex-start; flex-direction: column; gap: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="wrap nav" aria-label="Main navigation">
+      <a class="brand" href="/" aria-label="Argus home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+            <path d="M4 18.5 11.9 4l8.1 14.5H4Z" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M8 15h8M10 11.5h4" stroke="currentColor" stroke-width="1.3"/>
+            <circle cx="12" cy="8.2" r="1" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="brand-name">ARGUS</span>
+        <span class="brand-sub">EUDR evidence workspace</span>
+      </a>
+      <div class="nav-links">
+        <a href="#workflow">How it works</a>
+        <a href="#platform">Run Argus</a>
+        <a href="#readiness">EUDR dates</a>
+        <a class="button button-quiet" href="/">Open sample workspace <span class="arrow">↗</span></a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow">EUDR · Regulation (EU) 2023/1115</span>
+          <h1>See what changed on a sourcing plot.</h1>
+          <p class="hero-lead">Argus compares Sentinel-2 observations for a supplied farm boundary against a reference period around the 31 December 2020 cut-off. Your team gets a change screen, map and report to review.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="/">Open the sample workspace <span class="arrow">↗</span></a>
+            <a class="button button-quiet" href="#workflow">View the audit flow <span class="arrow">↓</span></a>
+          </div>
+          <div class="hero-meta" aria-label="Platform details">
+            <span><i class="meta-dot"></i> Sentinel-2 scenes via STAC</span>
+            <span><i class="meta-dot"></i> PNG, PDF and JSON reports</span>
+          </div>
+        </div>
+
+        <div class="screen" aria-label="Illustrative sample records from the Argus workspace">
+          <div class="screen-top">
+            <div class="screen-brand"><span class="screen-brand-mark">A</span> ARGUS <span style="color:#8292a3;font-weight:400">/ SAMPLE PORTFOLIO</span></div>
+            <span class="sample-tag">LOCAL DEMO DATA</span>
+          </div>
+          <div class="screen-content">
+            <div class="screen-heading">
+              <div><strong>Parcel screening records</strong><small>Example entries from the workspace</small></div>
+              <span class="sample-tag">cut-off · 2020-12-31</span>
+            </div>
+            <div class="record-table" role="table" aria-label="Illustrative parcel screening records">
+              <div class="record-head" role="row"><span role="columnheader">Parcel</span><span role="columnheader">Commodity</span><span role="columnheader">Change</span><span role="columnheader">Example</span></div>
+              <div class="record-row" role="row"><span class="record-plot"><strong>PLOT-BR-8821</strong><small>Mato Grosso, Brazil</small></span><span>Soy</span><span class="record-value">−14.2%</span><span class="record-state flag">Flagged</span></div>
+              <div class="record-row" role="row"><span class="record-plot"><strong>PLOT-CO-1049</strong><small>Huila, Colombia</small></span><span>Coffee</span><span class="record-value">0.0%</span><span class="record-state clear">No flag</span></div>
+              <div class="record-row" role="row"><span class="record-plot"><strong>PLOT-CI-9920</strong><small>San-Pédro, Côte d’Ivoire</small></span><span>Cocoa</span><span class="record-value">−8.7%</span><span class="record-state flag">Flagged</span></div>
+            </div>
+            <p class="sample-note">These are illustrative local records, not live supplier data or due-diligence conclusions.</p>
+            <div class="screen-foot"><span>Workspace: GeoJSON upload · sample batch · scene compare</span><span class="hash">Argus sample view</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="proof-strip" aria-label="Platform capabilities">
+      <div class="wrap proof-grid">
+        <div class="proof-item"><span class="proof-label">INPUT</span><strong>Farm boundaries</strong><small>GeoJSON and GDAL-supported formats</small></div>
+        <div class="proof-item"><span class="proof-label">IMAGERY</span><strong>Sentinel-2 L2A</strong><small>STAC scene search and comparison</small></div>
+        <div class="proof-item"><span class="proof-label">ANALYSIS</span><strong>NDVI change</strong><small>Canopy area and change metrics</small></div>
+        <div class="proof-item"><span class="proof-label">OUTPUT</span><strong>PNG · PDF · JSON</strong><small>For review and downstream systems</small></div>
+      </div>
+    </div>
+
+    <section id="workflow" class="section section-muted">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="kicker">Parcel to report</p>
+          <h2>What an Argus screen does.</h2>
+          <p class="section-intro">A parcel boundary goes in. The result is a geospatial screening record for your team to inspect.</p>
+        </div>
+        <div class="workflow-grid">
+          <article class="workflow-card">
+            <span class="step">01</span>
+            <h3>Load the boundary</h3>
+            <div><p>Upload GeoJSON in the workspace or pass a parcel file to the CLI. Multi-feature GeoJSON can be handled as a portfolio.</p><div class="tagline"><span class="tag">GeoJSON</span><span class="tag">Parcel ID</span><span class="tag">Geometry validation</span></div></div>
+          </article>
+          <article class="workflow-card">
+            <span class="step">02</span>
+            <h3>Select and compare scenes</h3>
+            <div><p>Search STAC for Sentinel-2 imagery in the reference and current periods. Argus compares red and near-infrared bands over the parcel and calculates NDVI change.</p><div class="tagline"><span class="tag">Cloud cover filter</span><span class="tag">NDVI</span><span class="tag">Sentinel-1 visual comparison</span></div></div>
+          </article>
+          <article class="workflow-card">
+            <span class="step">03</span>
+            <h3>Review the output</h3>
+            <div><p>Inspect the change map, scene details and parcel metrics. Export a comparison PNG, a PDF report or machine-readable JSON.</p><div class="tagline"><span class="tag">Canopy loss area</span><span class="tag">Scene dates</span><span class="tag">PDF · JSON · PNG</span></div></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="platform" class="section">
+      <div class="wrap feature-layout">
+        <div class="feature-copy">
+          <p class="kicker">Run Argus</p>
+          <h2>A CLI for audits. An API for your workflow.</h2>
+          <p>Start with one parcel from the command line. Use the service API and batch endpoint when the screening needs to sit inside an existing sourcing or risk process.</p>
+          <ul class="feature-list">
+            <li><span class="check">✓</span><span><strong>Use familiar geospatial files:</strong> GeoJSON, Shapefile and other GDAL-readable formats.</span></li>
+            <li><span class="check">✓</span><span><strong>Run on CPU or CUDA:</strong> GPU acceleration is optional.</span></li>
+            <li><span class="check">✓</span><span><strong>Pass on the result:</strong> use JSON and API responses in your own procurement or ERP integration.</span></li>
+          </ul>
+        </div>
+        <div class="pipeline" aria-label="Example Argus command and report fields">
+          <div class="pipeline-head"><strong>Cloud audit · CLI</strong><small>EXAMPLE COMMAND</small></div>
+          <pre class="code-command"><code><span class="prompt">$</span> ./bin/argus audit farm_parcel.geojson \
+    --save-png audit_map.png \
+    --pdf audit_report.pdf \
+    --json</code></pre>
+          <div class="code-output"><span>Report fields</span><br>asset_id · parcel_area_ha · deforested_ha<br>canopy_loss_percent · mean_delta_ndvi · verdict</div>
+          <p class="pipeline-note">Imagery availability, cloud cover and parcel geometry affect the result. The report records a screening run for review.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="scope" class="section section-muted">
+      <div class="wrap scope-layout">
+        <div>
+          <p class="kicker">Where the satellite screen fits</p>
+          <h2>Forest-change screening is one part of due diligence.</h2>
+          <p class="section-intro">Argus examines vegetation change on a supplied plot. Use that result alongside supplier records, production-legality evidence and your wider risk assessment.</p>
+        </div>
+        <div>
+          <div class="scope-note">
+            <strong>The operator makes the due-diligence assessment</strong>
+            <p>Argus provides geospatial screening evidence. The operator remains responsible for the full due-diligence process, risk mitigation and any statement submitted under EUDR.</p>
+          </div>
+          <div class="scope-points" style="margin-top:12px">
+            <div class="scope-point"><b>Plot and location evidence</b><span>Work from georeferenced production-plot boundaries and preserve parcel-level context.</span></div>
+            <div class="scope-point"><b>Forest-change screening</b><span>Compare satellite observations around the EUDR’s 31 December 2020 cut-off.</span></div>
+            <div class="scope-point"><b>Review trail</b><span>Bring scene information, metrics and maps into a record your team can inspect.</span></div>
+            <div class="scope-point"><b>Wider due diligence</b><span>Combine the screening result with supplier, production-legality and risk information.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="readiness" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="kicker">Current timeline</p>
+          <h2>EUDR application starts on different dates by operator size.</h2>
+          <p class="section-intro">These are the current dates published by the European Commission.</p>
+        </div>
+        <div class="timeline">
+          <div class="date-block"><small>Large and medium-sized operators and traders</small><strong>30 December 2026</strong><span>Application date</span></div>
+          <div class="date-block"><small>Micro and small enterprises</small><strong>30 June 2027</strong><span>Application date</span></div>
+        </div>
+        <p class="date-caveat">The December 2026 date also applies to micro and small operators already covered by the EU Timber Regulation. Dates reflect the European Commission’s current information; check the <a href="https://environment.ec.europa.eu/topics/forests/deforestation/eu-deforestation-regulation-eudr_en" target="_blank" rel="noopener noreferrer">official page</a> for updates and scope details.</p>
+      </div>
+    </section>
+
+    <section class="cta">
+      <div class="wrap cta-inner">
+        <div>
+          <p class="kicker" style="color:#b9abff">Sample workspace</p>
+          <h2>Try the parcel workflow with local demo records.</h2>
+          <p>The workspace opens with sample data. Upload a GeoJSON boundary to explore the parcel tools.</p>
+        </div>
+        <div class="cta-actions">
+          <a class="button button-light" href="/">Open the sample workspace <span class="arrow">↗</span></a>
+          <a class="button button-quiet" href="#scope">What the screen covers <span class="arrow">↑</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-inner">
+      <span>© 2026 Argus · EUDR parcel screening and evidence workspace</span>
+      <div class="footer-links">
+        <a href="/">Workspace</a>
+        <a href="https://environment.ec.europa.eu/topics/forests/deforestation/eu-deforestation-regulation-eudr_en" target="_blank" rel="noopener noreferrer">European Commission EUDR page ↗</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
